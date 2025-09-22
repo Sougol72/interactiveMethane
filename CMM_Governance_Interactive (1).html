@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Australia’s Emissions Governance & Data Flow (CMM)</title>
+<style>
+  :root{
+    --bg:#f8fafc;
+    --panel:#ffffff;
+    --card:#ffffff;
+    --accent:#2563eb;
+    --accent2:#059669;
+    --accent3:#d97706;
+    --muted:#64748b;
+    --text:#1e293b;
+    --link:#2563eb;
+    --danger:#dc2626;
+    --ok:#059669;
+    --shadow: 0 4px 12px rgba(0,0,0,.08);
+    --border:#e2e8f0;
+  }
+  html,body{height:100%}
+  body{
+    margin:0;
+    background: linear-gradient(135deg, #f1f5f9 0%, var(--bg) 100%);
+    color:var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  }
+  .wrap{
+    display:grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    gap:18px;
+    height:100vh;
+    padding:18px;
+    box-sizing:border-box;
+  }
+  header{
+    grid-column:1/-1;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;
+    background: var(--card);
+    border:1px solid var(--border);
+    border-radius:12px;
+    box-shadow: var(--shadow);
+  }
+  header h1{
+    font-size:20px;margin:0;font-weight:700;letter-spacing:.2px
+  }
+  header .sub{color:var(--muted);font-size:14px;margin-left:8px}
+  .controls{display:flex;gap:10px;align-items:center}
+  .chip{
+    display:inline-flex;gap:8px;align-items:center;
+    padding:8px 12px;border-radius:20px;
+    background:#f8fafc;
+    border:1px solid var(--border);
+    cursor:pointer;user-select:none;font-size:13px;color:var(--text);
+    transition: all 0.2s ease;
+  }
+  .chip:hover{
+    background:#e2e8f0;
+    border-color:#cbd5e1;
+  }
+  .chip input{accent-color:var(--accent)}
+  .chip svg{width:16px;height:16px;opacity:.85}
+  .board{
+    position:relative;background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border:1px solid var(--border);
+    border-radius:16px;box-shadow:var(--shadow);overflow:hidden;
+    height:100%;
+    min-height: calc(100vh - 110px);
+  }
+  .legend{
+    display:flex;gap:10px;flex-wrap:wrap;
+    padding:8px 12px;color:var(--muted);font-size:12px
+  }
+  .legend .key{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .dot.report{background:var(--accent)}
+  .dot.data{background:var(--accent2)}
+  .dot.policy{background:var(--accent3)}
+  .dot.influence{background:#dc2626}
+  /* Node cards */
+  .node{
+    position:absolute;min-width:220px;max-width:260px;
+    background: var(--card);
+    border:1px solid var(--border);
+    border-radius:12px;padding:14px 16px;
+    box-shadow: var(--shadow);
+    cursor:pointer;
+    transition: all 0.2s ease;
+    transform: translate(-50%, -50%);
+  }
+  .node.dimmed{opacity:.06;filter:grayscale(1);pointer-events:none}
+  .node.hidden{opacity:0;visibility:hidden;pointer-events:none}
+  .node:hover{
+    transform: translate(-50%, -50%) scale(1.01);
+    border-color: var(--accent);
+    box-shadow: 0 8px 25px rgba(0,0,0,.12);
+  }
+  .node h3{margin:0 0 8px 0;font-size:14px;font-weight:600;letter-spacing:.1px;color:var(--text)}
+  .node p{margin:0;color:var(--muted);font-size:13px;line-height:1.4}
+  .badge{display:inline-block;font-size:10px;padding:4px 8px;border-radius:12px;margin-bottom:8px;font-weight:500}
+  .bad-policy{background:#fef3c7;color:#92400e;border:1px solid #f59e0b}
+  .bad-reg{background:#dbeafe;color:#1e40af;border:1px solid #3b82f6}
+  .bad-state{background:#dcfce7;color:#166534;border:1px solid #10b981}
+  .bad-ngo{background:#fce7f3;color:#be185d;border:1px solid #ec4899}
+  /* Right sidebar */
+  .panel{display:none}
+  .panel h2{margin:4px 0 0 0;font-size:18px}
+  .panel .hint{color:var(--muted);font-size:13px}
+  .details{
+    background:#f8fafc;border:1px solid var(--border);
+    border-radius:12px;padding:16px;min-height:180px;max-height:44vh;overflow:auto
+  }
+  .glossary{
+    display:grid;grid-template-columns:1fr;gap:8px;max-height:28vh;overflow:auto
+  }
+  .term{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px}
+  .term b{color:var(--text)}
+  .divider{height:1px;background:linear-gradient(to right, transparent, var(--border), transparent)}
+  /* SVG arrows */
+  svg{position:absolute;inset:0;width:100%;height:100%}
+  .edge{fill:none;stroke-width:3px;opacity:.9;filter: drop-shadow(0 1px 0 rgba(0,0,0,.15))}
+  /* Unique colors for each arrow */
+  .edge.reporters-cer{stroke:#1e40af} /* Blue */
+  .edge.cer-safeguard{stroke:#dc2626} /* Red */
+  .edge.safeguard-reporters{stroke:#059669} /* Green */
+  .edge.reporters-inventory{stroke:#d97706} /* Orange */
+  .edge.local-ember{stroke:#7c3aed} /* Purple */
+  .edge.cer-ember{stroke:#c2410c} /* Brown */
+  .edge.ember-dcc{stroke:#0891b2} /* Teal */
+  .edge.ember-states{stroke:#65a30d} /* Lime */
+  .edge.ember-cer{stroke:#ea580c} /* Orange-red */
+  .edge.states-reporters{stroke:#be185d} /* Pink */
+  .edge.dcc-cer{stroke:#0d9488} /* Emerald */
+  .edge.dcc-states{stroke:#7c2d12} /* Dark brown */
+  .edge.dcc-inventory{stroke:#4338ca} /* Indigo */
+  .edge.markets-dcc{stroke:#b91c1c} /* Dark red */
+  .edge.markets-cer{stroke:#2563eb} /* Blue */
+  .edge.markets-states{stroke:#16a34a} /* Green */
+  .edge.local-states{stroke:#ca8a04} /* Yellow */
+  .edge.local-cer{stroke:#991b1b} /* Dark red */
+  .arrow{fill:currentColor}
+  .edge.hidden{display:none}
+  .edge-dimmed{opacity:.35; stroke-width:2px}
+  .edge-highlighted{opacity:1; stroke-width:3px; filter: drop-shadow(0 0 4px rgba(0,0,0,.25))}
+  .edge-hit{fill:none; stroke:transparent; stroke-width:22px; pointer-events:stroke}
+  .edge-hit.hidden{pointer-events:none}
+  .help{
+    position:absolute;top:14px;right:14px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;padding:8px 12px;font-size:12px;color:var(--muted);
+    box-shadow: var(--shadow);
+  }
+  .foot{font-size:11px;color:var(--muted)}
+  @media (max-width: 1100px){
+    .wrap{grid-template-columns:1fr; height:auto}
+  }
+
+  /* Modal for node details */
+  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,.6);backdrop-filter: blur(4px);}
+  .modal[hidden]{display:none}
+  .modal-card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow: var(--shadow);width:min(760px, 90vw);max-height:80vh;overflow:auto;padding:18px}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+  .modal-title{font-size:18px;margin:0}
+  .modal-close{border:1px solid var(--border);background:#f8fafc;border-radius:8px;padding:6px 10px;cursor:pointer}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Australia’s Emissions Governance & Data Flow — <span style="color:var(--accent)">Coal Mine Methane</span></h1>
+        <div class="sub">Click any box to see what it does. Toggle flows to emphasise reporting, data, policy, or external influence.</div>
+      </div>
+      <div class="controls" id="controls">
+        <label class="chip"><input type="checkbox" data-kind="report" checked/> 
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h6"/></svg>
+          Reporting</label>
+        <label class="chip"><input type="checkbox" data-kind="data" checked/> 
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18"/></svg>
+          Data</label>
+        <label class="chip"><input type="checkbox" data-kind="policy" checked/> 
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 3h12v18H6z"/><path d="M9 7h6M9 11h6M9 15h6"/></svg>
+          Policy</label>
+        <label class="chip"><input type="checkbox" data-kind="influence" checked/>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h18"/><path d="M12 3l9 9-9 9"/></svg>
+          Influence</label>
+      </div>
+    </header>
+
+    <!-- BOARD -->
+    <div class="board" id="board">
+      <svg id="edges" viewBox="0 0 1200 700" preserveAspectRatio="none">
+        <defs>
+          <marker id="arrow-reporters-cer" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e40af"/>
+          </marker>
+          <marker id="arrow-cer-safeguard" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626"/>
+          </marker>
+          <marker id="arrow-safeguard-reporters" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#059669"/>
+          </marker>
+          <marker id="arrow-reporters-inventory" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706"/>
+          </marker>
+          <marker id="arrow-local-ember" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/>
+          </marker>
+          <marker id="arrow-cer-ember" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#c2410c"/>
+          </marker>
+          <marker id="arrow-ember-dcc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#0891b2"/>
+          </marker>
+          <marker id="arrow-ember-states" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#65a30d"/>
+          </marker>
+          <marker id="arrow-ember-cer" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#ea580c"/>
+          </marker>
+          <marker id="arrow-states-reporters" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#be185d"/>
+          </marker>
+          <marker id="arrow-dcc-cer" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#0d9488"/>
+          </marker>
+          <marker id="arrow-dcc-states" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c2d12"/>
+          </marker>
+          <marker id="arrow-dcc-inventory" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#4338ca"/>
+          </marker>
+          <marker id="arrow-markets-dcc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#b91c1c"/>
+          </marker>
+          <marker id="arrow-markets-cer" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/>
+          </marker>
+          <marker id="arrow-markets-states" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a"/>
+          </marker>
+          <marker id="arrow-local-states" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#ca8a04"/>
+          </marker>
+          <marker id="arrow-local-cer" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#991b1b"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="legend">
+        <span class="key"><span class="dot report"></span>Reporting</span>
+        <span class="key"><span class="dot data"></span>Data</span>
+        <span class="key"><span class="dot policy"></span>Policy/Compliance</span>
+        <span class="key"><span class="dot influence"></span>External Influence</span>
+      </div>
+      
+    </div>
+    
+    <!-- MODAL -->
+    <div class="modal" id="modal" hidden>
+      <div class="modal-card">
+        <div class="modal-head">
+          <h3 class="modal-title" id="modal-title"></h3>
+          <button class="modal-close" id="modal-close">Close</button>
+        </div>
+        <div id="modal-body"></div>
+        <div class="divider" style="margin:12px 0"></div>
+        <div class="glossary">
+          <div class="term"><b>SMC — Safeguard Mechanism Credit</b><br/>Earned when actual emissions are <i>under</i> a facility’s baseline under the Safeguard Mechanism.</div>
+          <div class="term"><b>ACCU — Australian Carbon Credit Unit</b><br/>A unit from certified abatement projects; facilities <i>over</i> baseline may surrender SMCs or ACCUs to comply.</div>
+          <div class="term"><b>NGERS — National Greenhouse & Energy Reporting Scheme</b><br/>The national framework for facility‑level emissions & energy reporting (administered by the CER).</div>
+          <div class="term"><b>MRV — Measurement, Reporting & Verification</b><br/>Standards and practices that underpin trustworthy emissions data across supply chains.</div>
+          <div class="term"><b>Baselines</b><br/>Production‑adjusted limits that decline over time; set the compliance bar for facilities.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INTRO MODAL -->
+    <div class="modal" id="intro-modal">
+      <div class="modal-card" style="max-width: 600px;">
+        <div class="modal-head">
+          <h3 class="modal-title">Australia's Coal Mine Methane Governance & Data Flow</h3>
+          <button class="modal-close" id="intro-close">×</button>
+        </div>
+        <div style="line-height: 1.6; color: var(--text);">
+          <p><strong>Welcome to the interactive visualization of Australia's Coal Mine Methane (CMM) governance framework.</strong></p>
+
+          <p>This diagram illustrates the complex relationships between key stakeholders, regulatory bodies, and data flows in Australia's methane emissions management system for coal mining operations.</p>
+
+          <h4 style="margin: 20px 0 10px 0; color: var(--text);">How to Use:</h4>
+          <ul style="margin: 0 0 20px 0; padding-left: 20px;">
+            <li><strong>Click any box</strong> to learn about its role and responsibilities</li>
+            <li><strong>Hover over arrows</strong> to see detailed connection information</li>
+            <li><strong>Use the checkboxes</strong> to filter flows by type: Reporting, Data, Policy, or External Influence</li>
+            <li><strong>Each arrow has a unique color</strong> for easy identification</li>
+          </ul>
+
+          <div style="border-top: 1px solid var(--border); padding-top: 15px; margin-top: 20px; font-size: 14px; color: var(--muted);">
+            <strong>Developer:</strong> Sougol Aghdasi<br>
+            <strong>Email:</strong> saghdasi@student.unimelb.edu.au<br>
+            <strong>Institution:</strong> University of Melbourne
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ---------- DATA MODEL ----------
+const nodes = [
+  {
+    id:'dcc', title:'DCCEEW',
+    badge:'Policy',
+    badgeClass:'bad-policy',
+    x: 500, y: 80,
+    col:3, row:1,
+    oneLiner:'Writes the rules (methods, baselines, decline rates).',
+    bullets:[
+      'Leads method reform and inventory guidelines',
+      'Sets production‑adjusted, declining baselines policy',
+      'Consults with industry and civil society'
+    ]
+  },
+  {
+    id:'cer', title:'Clean Energy Regulator (CER)',
+    badge:'Regulator',
+    badgeClass:'bad-reg',
+    x: 500, y: 200,
+    col:3, row:2,
+    oneLiner:'Operates NGERS & Safeguard; audits; publishes data; issues SMCs; manages the registry.',
+    bullets:[
+      'Runs reporting (NGERS) & compliance (Safeguard)',
+      'Audits reporters, publishes facility & scheme data',
+      'Issues/records SMCs in the Registry'
+    ]
+  },
+  {
+    id:'reporters', title:'Reporters (Facilities/Mine Operators)',
+    badge:'Reporters',
+    badgeClass:'bad-reg',
+    x: 150, y: 350,
+    col:1, row:1,
+    oneLiner:'Measure per Determination; submit NGER by 31 Oct; keep records 5 years.',
+    bullets:[
+      'Measure methane under Determination methods',
+      'Submit NGERS data by 31 Oct; maintain records (5 yrs)',
+      'Provide evidence for audits'
+    ]
+  },
+  {
+    id:'safeguard', title:'Safeguard Mechanism',
+    badge:'Compliance',
+    badgeClass:'bad-reg',
+    x: 500, y: 350,
+    col:1, row:2,
+    oneLiner:'Baselines (production‑adjusted, declining); UNDER → SMCs; OVER → surrender SMCs/ACCUs by 1 Apr.',
+    bullets:[
+      'Facility baselines decline over time',
+      'Under baseline ⇒ Earn SMCs',
+      'Over baseline ⇒ Surrender SMCs/ACCUs by 1 Apr'
+    ]
+  },
+  {
+    id:'states', title:'State Regulators (NSW / QLD)',
+    badge:'State',
+    badgeClass:'bad-state',
+    x: 850, y: 350,
+    col:6, row:1,
+    oneLiner:'Put methane monitoring & mitigation into licences; enforce at project level.',
+    bullets:[
+      'Translate policy into licence conditions',
+      'Mandate monitoring/mitigation at mine level',
+      'Enforce compliance and improvements'
+    ]
+  },
+  {
+    id:'ember', title:'Independent analytics & advocacy (e.g., Ember)',
+    badge:'NGO / Think Tank',
+    badgeClass:'bad-ngo',
+    x: 500, y: 500,
+    col:3, row:3,
+    oneLiner:'Fuse data + policy; publish analysis; draft licence text; prioritise mines; feed consultations.',
+    bullets:[
+      'Fuse open data, instruments & operator reports',
+      'Publish mine‑level analysis & abatement priorities',
+      'Draft licence text; make submissions to DCCEEW/CER/States'
+    ]
+  },
+  {
+    id:'local', title:'Local / Independent Data (UOW/CSIRO, Open Methane, inversions)',
+    badge:'Data',
+    badgeClass:'bad-state',
+    x: 150, y: 500,
+    col:1, row:3,
+    oneLiner:'Instruments + inversion + Open Methane tighten estimates; reconcile operator reports.',
+    bullets:[
+      'Flux towers, aircraft, satellites, OGI & inversions',
+      'Cross‑check operator‑reported emissions',
+      'Identify super‑emitters & temporal patterns'
+    ]
+  },
+  {
+    id:'inventory', title:'National Inventory (NIR)',
+    badge:'Inventory',
+    badgeClass:'bad-policy',
+    x: 850, y: 500,
+    col:6, row:2,
+    oneLiner:'Aggregates for national totals; separate from facility compliance.',
+    bullets:[
+      'Compiles national totals and trends',
+      'Uses methods that differ from facility compliance',
+      'Feeds Australia’s international reporting'
+    ]
+  },
+  {
+    id:'markets', title:'External Markets (EU / ESG)',
+    badge:'Influence',
+    badgeClass:'bad-ngo',
+    x: 500, y: 620,
+    col:6, row:3,
+    oneLiner:'Drive MRV expectations along the export chain.',
+    bullets:[
+      'EU buyer rules & finance due‑diligence',
+      'Push higher MRV for supply‑chain methane',
+      'Reputational & access‑to‑market pressure'
+    ]
+  }
+];
+
+// Edges: {from,to,kind,label}
+const edges = [
+  // Reporting & data
+  {from:'reporters', to:'cer', kind:'report', label:'NGERS reports (by 31 Oct)'},
+  {from:'cer', to:'safeguard', kind:'policy', label:'Administers baselines & compliance'},
+  {from:'safeguard', to:'reporters', kind:'policy', label:'Obligations / SMCs / ACCUs'},
+  {from:'reporters', to:'inventory', kind:'data', label:'Facility data feeds inventory (methodological link)'},
+  {from:'local', to:'ember', kind:'data', label:'Measurements & inversions'},
+  {from:'cer', to:'ember', kind:'data', label:'Published facility & scheme data'},
+  {from:'ember', to:'dcc', kind:'policy', label:'Submissions / method feedback'},
+  {from:'ember', to:'states', kind:'policy', label:'Draft licence text & evidence'},
+  {from:'ember', to:'cer', kind:'data', label:'Analysis / anomaly flags'},
+  {from:'states', to:'reporters', kind:'policy', label:'Licence conditions & enforcement'},
+  {from:'dcc', to:'cer', kind:'policy', label:'Rules (methods, baselines, decline)'},
+  {from:'dcc', to:'states', kind:'policy', label:'National policy direction'},
+  {from:'dcc', to:'inventory', kind:'policy', label:'Inventory methods & guidelines'},
+  {from:'markets', to:'dcc', kind:'influence', label:'Trade & ESG expectations'},
+  {from:'markets', to:'cer', kind:'influence', label:'Transparency & MRV pressure'},
+  {from:'markets', to:'states', kind:'influence', label:'Buyer requirements (site‑level)'},
+  {from:'local', to:'states', kind:'data', label:'Evidence for licence changes'},
+  {from:'local', to:'cer', kind:'data', label:'Third‑party validation / studies'}
+];
+
+// Richer edge info with real-world examples for deeper context
+const edgeDetails = {
+  'reporters->cer': {
+    summary: 'Facilities report emissions and energy data to the CER under NGERS by 31 Oct.',
+    examples: [
+      'A QLD underground mine submits methane measurements from ventilation air and goaf emissions using Method 2 or 3.',
+      'CER requests supporting records (calibration logs, activity data) during an audit following anomaly detection.'
+    ]
+  },
+  'cer->safeguard': {
+    summary: 'CER administers the Safeguard; assigns/adjusts baselines and monitors compliance.',
+    examples: [
+      'CER updates a mine’s production-adjusted baseline after expansion approval.',
+      'Facility under baseline receives Safeguard Mechanism Credits (SMCs) recorded in the Registry.'
+    ]
+  },
+  'safeguard->reporters': {
+    summary: 'Safeguard obligations flow to facilities; surrender SMCs/ACCUs if over baseline by 1 Apr.',
+    examples: [
+      'Mine exceeding baseline acquires ACCUs from a landfill gas project to meet surrender obligations.',
+      'Operator plans methane abatement upgrades to reduce future surrender needs.'
+    ]
+  },
+  'reporters->inventory': {
+    summary: 'Facility data inform national inventories methodologically; inventory totals are compiled separately.',
+    examples: [
+      'Facility-reported methane informs sector parameters; NIR uses IPCC-aligned methods for national totals.',
+      'Method revisions tighten emission factors for underground coal mines.'
+    ]
+  },
+  'local->ember': {
+    summary: 'Independent measurements and inversions feed analytics and advocacy.',
+    examples: [
+      'University towers detect episodic methane spikes aligning with venting events.',
+      'Satellite detections near a mine trigger targeted on-site OGI surveys.'
+    ]
+  },
+  'cer->ember': {
+    summary: 'CER’s published facility and scheme data enable third-party analysis.',
+    examples: [
+      'Analysts compare NGERS methane intensities across mines to identify outliers.',
+      'Time-series of SMC issuance is used to assess compliance trends.'
+    ]
+  },
+  'ember->dcc': {
+    summary: 'Analytics inform submissions to improve methods and guidelines.',
+    examples: [
+      'Submission proposes updating default oxidation factors based on field data.',
+      'Method change request to differentiate ventilation air methane handling.'
+    ]
+  },
+  'ember->states': {
+    summary: 'Evidence-based licence text and monitoring requirements proposed to States.',
+    examples: [
+      'Draft licence condition for continuous methane monitoring at main fans.',
+      'Trigger-based inspections when inversion studies show persistent anomalies.'
+    ]
+  },
+  'ember->cer': {
+    summary: 'Analytics and anomaly flags support regulator oversight.',
+    examples: [
+      'Cross-checks highlight discrepancies between reported and observed emissions.',
+      'Flagged facilities prioritized for audit sampling.'
+    ]
+  },
+  'states->reporters': {
+    summary: 'States enforce licence conditions and improvements at project level.',
+    examples: [
+      'Condition mandates pre-drainage or oxidation where feasible.',
+      'Non-compliance leads to corrective action notices.'
+    ]
+  },
+  'dcc->cer': {
+    summary: 'DCCEEW sets rules: methods, baselines, decline trajectories.',
+    examples: [
+      'Method update introduces direct measurement priority for methane.',
+      'Baseline decline rates aligned with national targets.'
+    ]
+  },
+  'dcc->states': {
+    summary: 'National policy direction informs State regulator expectations.',
+    examples: [
+      'National methane plan drives tighter mine licence conditions.',
+      'Guidance aligns monitoring protocols across States.'
+    ]
+  },
+  'dcc->inventory': {
+    summary: 'DCCEEW governs inventory methods and guidelines.',
+    examples: [
+      'Adopts updated IPCC guidance for fugitive methane in inventories.',
+      'Refines sectoral emission factors using NGERS insights.'
+    ]
+  },
+  'markets->dcc': {
+    summary: 'External trade and ESG pressures shape domestic policy.',
+    examples: [
+      'EU supply chain due diligence drives tighter MRV standards.',
+      'Export finance requirements incentivize methane mitigation.'
+    ]
+  },
+  'markets->cer': {
+    summary: 'Transparency and MRV expectations raise regulator disclosure bars.',
+    examples: [
+      'Investors demand granular facility methane disclosures.',
+      'Global reporting frameworks push higher data quality.'
+    ]
+  },
+  'markets->states': {
+    summary: 'Buyer requirements cascade to site-level expectations.',
+    examples: [
+      'Long-term contracts include methane intensity thresholds.',
+      'Buyers request independent verification at specific mines.'
+    ]
+  },
+  'local->states': {
+    summary: 'Independent evidence supports licence updates.',
+    examples: [
+      'Inversions corroborate chronic underestimation; licence amended for continuous monitoring.',
+      'Targeted inspections triggered by persistent plumes.'
+    ]
+  },
+  'local->cer': {
+    summary: 'Third-party studies validate or challenge operator reports.',
+    examples: [
+      'Peer-reviewed studies prompt method refinement discussions.',
+      'Campaigns identify super-emitters leading to corrective actions.'
+    ]
+  }
+};
+
+// ---------- RENDER (responsive, PowerPoint-friendly) ----------
+const DESIGN_WIDTH = 1200;
+const DESIGN_HEIGHT = 700;
+const GRID_COLS = 6; // expanded grid for more spacing
+const GRID_ROWS = 9; // increased for 3 rows per column with spacing
+const board = document.getElementById('board');
+const svg = document.getElementById('edges');
+
+const nodeEls = {};
+
+function scaleX(x){
+  const w = board.clientWidth || DESIGN_WIDTH;
+  return x / DESIGN_WIDTH * w;
+}
+function scaleY(y){
+  const h = board.clientHeight || DESIGN_HEIGHT;
+  return y / DESIGN_HEIGHT * h;
+}
+
+// Create nodes (once)
+for(const n of nodes){
+  const el = document.createElement('div');
+  el.className = 'node';
+  el.dataset.id = n.id;
+  el.innerHTML = `
+    <div class="badge ${n.badgeClass}">${n.badge}</div>
+    <h3>${n.title}</h3>
+    <p>${n.oneLiner}</p>
+  `;
+  el.addEventListener('click', () => showDetails(n));
+  el.addEventListener('mouseenter', () => highlightRelatedForNode(n.id));
+  el.addEventListener('mouseleave', () => resetEdgeAndNodeHighlighting());
+  nodeEls[n.id] = el;
+  board.appendChild(el);
+}
+
+function layoutNodes(){
+  const w = board.clientWidth || DESIGN_WIDTH;
+  const h = board.clientHeight || DESIGN_HEIGHT;
+  const cellW = w / GRID_COLS;
+  const cellH = h / GRID_ROWS;
+  const cardW = Math.max(200, Math.min(260, cellW - 36));
+  const minGap = 32; // minimum vertical gap between cards
+  const margin = 16; // keep a margin to the top/bottom edges
+
+  // First pass: set widths and horizontal centers based on grid
+  for(const n of nodes){
+    const el = nodeEls[n.id];
+    let cx = (n.col - 0.5) * cellW; // desired horizontal center
+    // Pull outer columns slightly toward center
+    const edgeShift = cellW * 0.15; // 15% of a column width
+    if(n.col === 1) cx += edgeShift;
+    if(n.col === GRID_COLS) cx -= edgeShift;
+
+    // For row 2, shift col 1 slightly toward the left for better positioning
+    if(n.row === 2){
+      if(n.col === 1){
+        // Shift col 1 slightly left
+        cx += cellW * 0.1;
+      }
+      // col 3 stays fixed
+    }
+
+    el.style.left = cx + 'px';
+    el.style.minWidth = cardW + 'px';
+    el.style.maxWidth = cardW + 'px';
+    el.style.padding = '14px 16px';
+  }
+
+  // Measure and group by columns
+  const columns = new Map();
+  for(const n of nodes){
+    const el = nodeEls[n.id];
+    const rect = el.getBoundingClientRect();
+    const item = {
+      el,
+      col: n.col,
+      desiredCenterY: (n.row - 0.5) * cellH,
+      halfHeight: rect.height / 2
+    };
+    if(!columns.has(n.col)) columns.set(n.col, []);
+    columns.get(n.col).push(item);
+  }
+
+  // For each column, place nodes vertically without overlaps and within bounds
+  for(const [col, items] of columns.entries()){
+    // Sort by desired row position
+    items.sort((a,b)=> a.desiredCenterY - b.desiredCenterY);
+
+    // Scale center-to-center spacing by a factor (e.g., 3x current)
+    const SPACING_SCALE = 4;
+    if(items.length > 1){
+      const base = items[0].desiredCenterY;
+      for(const it of items){
+        const offset = it.desiredCenterY - base;
+        it.desiredCenterY = base + offset * SPACING_SCALE;
+      }
+    }
+
+    // Top-down pass to eliminate overlaps
+    let currentTop = margin;
+    for(const it of items){
+      const minCenter = currentTop + it.halfHeight;
+      const center = Math.max(it.desiredCenterY, minCenter);
+      it.centerY = center;
+      currentTop = center + it.halfHeight + minGap;
+    }
+
+    // Bottom-up pass to clamp within bottom bound and fix accumulated drift
+    let currentBottom = h - margin;
+    for(let i = items.length - 1; i >= 0; i--){
+      const it = items[i];
+      const maxCenter = currentBottom - it.halfHeight;
+      it.centerY = Math.min(it.centerY, maxCenter);
+      currentBottom = it.centerY - it.halfHeight - minGap;
+    }
+
+    // Final top-down pass to ensure no overlaps after clamping
+    currentTop = margin;
+    for(const it of items){
+      const minCenter = currentTop + it.halfHeight;
+      it.centerY = Math.max(it.centerY, minCenter);
+      currentTop = it.centerY + it.halfHeight + minGap;
+    }
+
+    // Apply computed positions
+    for(const it of items){
+      it.el.style.top = it.centerY + 'px';
+    }
+  }
+}
+
+function pathBetweenCurved(ax, ay, bx, by){
+  // Smooth curved path that avoids sharp corners and crossings
+  const dx = bx - ax;
+  const dy = by - ay;
+  const distance = Math.sqrt(dx*dx + dy*dy);
+
+  // Control points for smooth curve - adjust curve strength based on distance
+  const curveStrength = Math.min(distance * 0.3, 80);
+  const cp1x = ax + (dx > 0 ? curveStrength : -curveStrength);
+  const cp1y = ay;
+  const cp2x = bx - (dx > 0 ? curveStrength : -curveStrength);
+  const cp2y = by;
+
+  return `M ${ax} ${ay} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${bx} ${by}`;
+}
+
+function connectionPoints(aEl, bEl){
+  const boardRect = board.getBoundingClientRect();
+  const ar = aEl.getBoundingClientRect();
+  const br = bEl.getBoundingClientRect();
+  const ax = ar.left - boardRect.left + ar.width/2;
+  const ay = ar.top  - boardRect.top  + ar.height/2;
+  const bx = br.left - boardRect.left + br.width/2;
+  const by = br.top  - boardRect.top  + br.height/2;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const START_GAP = 2; // small offset away from source edge
+  const END_GAP = 12;  // pull arrowhead back from target edge
+  let startX, startY, endX, endY;
+  if(Math.abs(dx) > Math.abs(dy)){
+    startX = ax + (dx > 0 ? ar.width/2 + START_GAP : -ar.width/2 - START_GAP);
+    endX   = bx - (dx > 0 ? br.width/2 + END_GAP : -br.width/2 - END_GAP);
+    startY = ay + (dy === 0 ? (dx > 0 ? -6 : 6) : 0);
+    endY   = by + (dy === 0 ? (dx > 0 ? -6 : 6) : 0);
+  }else{
+    startY = ay + (dy > 0 ? ar.height/2 + START_GAP : -ar.height/2 - START_GAP);
+    endY   = by - (dy > 0 ? br.height/2 + END_GAP : -br.height/2 - END_GAP);
+    startX = ax + (dx === 0 ? (dy > 0 ? 6 : -6) : 0);
+    endX   = bx + (dx === 0 ? (dy > 0 ? 6 : -6) : 0);
+  }
+  return {startX, startY, endX, endY};
+}
+
+function clearEdges(){
+  svg.querySelectorAll('path.edge').forEach(p=>p.remove());
+}
+
+function highlightRelatedForNode(nodeId){
+  const controls = document.getElementById('controls');
+  const state = {};
+  controls.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    state[cb.dataset.kind] = cb.checked;
+  });
+
+  // Dim all nodes first
+  Object.values(nodeEls).forEach(el=> el.classList.add('dimmed'));
+
+  // Hide all edges
+  svg.querySelectorAll('path.edge').forEach(p => {
+    p.classList.remove('edge-highlighted', 'edge-connected', 'edge-dimmed');
+    p.classList.add('hidden');
+  });
+
+  // Show node itself
+  const centerEl = nodeEls[nodeId];
+  centerEl.classList.remove('dimmed');
+
+  // Show connected edges and counterpart nodes
+  svg.querySelectorAll(`path.edge[data-from="${nodeId}"], path.edge[data-to="${nodeId}"]`).forEach(p => {
+    if (state[p.dataset.kind]) {
+      p.classList.remove('hidden');
+      p.classList.add('edge-highlighted');
+      const otherId = p.dataset.from === nodeId ? p.dataset.to : p.dataset.from;
+      nodeEls[otherId]?.classList.remove('dimmed');
+    }
+  });
+}
+
+function resetEdgeHighlighting(){
+  const controls = document.getElementById('controls');
+  const state = {};
+  controls.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    state[cb.dataset.kind] = cb.checked;
+  });
+
+  svg.querySelectorAll('path.edge').forEach(p => {
+    p.classList.remove('edge-highlighted', 'edge-connected');
+    if (state[p.dataset.kind]) {
+      p.classList.remove('hidden');
+      p.classList.add('edge-dimmed');
+    } else {
+      p.classList.add('hidden');
+    }
+  });
+}
+
+// Edge-only hover isolation with node dimming and rich popover
+function highlightOnlyThisEdge(edgeObj, pathEl){
+  const controls = document.getElementById('controls');
+  const state = {};
+  controls.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    state[cb.dataset.kind] = cb.checked;
+  });
+
+  // Hide all edges first according to filters
+  svg.querySelectorAll('path.edge').forEach(p => {
+    p.classList.remove('edge-highlighted', 'edge-connected', 'edge-dimmed');
+    if (!p.classList.contains('hidden')) p.classList.add('hidden');
+  });
+
+  // Show only this edge if its type is enabled
+  if(state[edgeObj.kind]){
+    pathEl.classList.remove('hidden');
+    pathEl.classList.add('edge-highlighted');
+  }
+
+  // Dim non-relevant nodes, keep only endpoints fully visible
+  const fromEl = nodeEls[edgeObj.from];
+  const toEl = nodeEls[edgeObj.to];
+  Object.values(nodeEls).forEach(el=>{
+    el.classList.add('dimmed');
+  });
+  fromEl.classList.remove('dimmed');
+  toEl.classList.remove('dimmed');
+}
+
+function resetEdgeAndNodeHighlighting(){
+  // Restore nodes
+  Object.values(nodeEls).forEach(el=>{
+    el.classList.remove('dimmed');
+  });
+  // Restore edges to filter-aware dimmed state
+  resetEdgeHighlighting();
+}
+
+function applyFilterState(){
+  const controls = document.getElementById('controls');
+  const state = {};
+  controls.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    state[cb.dataset.kind] = cb.checked;
+  });
+  Object.entries(state).forEach(([kind, show])=>{
+    svg.querySelectorAll(`.edge.${kind}`).forEach(el=>{
+      el.classList.toggle('hidden', !show);
+      if (!show) {
+        el.classList.remove('edge-highlighted', 'edge-connected');
+        el.classList.add('edge-dimmed');
+      }
+    });
+  });
+}
+
+function renderEdges(){
+  const w = board.clientWidth || DESIGN_WIDTH;
+  const h = board.clientHeight || DESIGN_HEIGHT;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  clearEdges();
+  for(const e of edges){
+    const aEl = nodeEls[e.from];
+    const bEl = nodeEls[e.to];
+    if(!aEl || !bEl) continue;
+    const {startX, startY, endX, endY} = connectionPoints(aEl, bEl);
+    const pathD = pathBetweenCurved(startX, startY, endX, endY);
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', pathD);
+    p.setAttribute('class', `edge ${e.from}-${e.to} ${e.kind} edge-dimmed`);
+    p.setAttribute('marker-end', `url(#arrow-${e.from}-${e.to})`);
+    p.dataset.kind = e.kind;
+    p.dataset.label = e.label;
+    p.dataset.from = e.from;
+    p.dataset.to = e.to;
+
+    // Larger invisible hit area for better hover tolerance
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hit.setAttribute('d', pathD);
+    hit.setAttribute('class', `edge-hit`);
+    hit.dataset.kind = e.kind;
+    hit.dataset.label = e.label;
+    hit.dataset.from = e.from;
+    hit.dataset.to = e.to;
+
+    function onEnter(evt){
+      highlightOnlyThisEdge(e, p);
+      showConnectionPopover(e, evt.clientX, evt.clientY);
+    }
+    function onLeave(){
+      hideConnectionPopover();
+      resetEdgeAndNodeHighlighting();
+    }
+    hit.addEventListener('mouseenter', onEnter);
+    hit.addEventListener('mouseleave', onLeave);
+    p.addEventListener('mouseenter', onEnter);
+    p.addEventListener('mouseleave', onLeave);
+
+    svg.appendChild(p);
+    svg.appendChild(hit);
+  }
+  applyFilterState();
+}
+
+function layout(){
+  layoutNodes();
+  renderEdges();
+}
+
+window.addEventListener('resize', ()=>{
+  layout();
+});
+
+// Initial layout after DOM paint
+requestAnimationFrame(layout);
+
+function resolveVerticalOverlaps(minGap = 24){
+  const boardRect = board.getBoundingClientRect();
+  const els = Object.values(nodeEls);
+  const items = els.map(el=>{
+    const r = el.getBoundingClientRect();
+    const centerY = r.top - boardRect.top + r.height/2;
+    return {el, centerY, height: r.height};
+  }).sort((a,b)=> a.centerY - b.centerY);
+
+  let lastBottom = -Infinity;
+  for(const item of items){
+    const half = item.height/2;
+    const minCenterY = lastBottom + minGap + half;
+    let newCenter = item.centerY;
+    if(newCenter < minCenterY){
+      newCenter = minCenterY;
+      item.el.style.top = newCenter + 'px';
+    }
+    lastBottom = newCenter + half;
+  }
+}
+
+// Temporary edge label on hover
+let connectionPopover;
+function showConnectionPopover(edgeObj, x, y){
+  hideConnectionPopover();
+  const fromNode = nodes.find(n=>n.id===edgeObj.from);
+  const toNode = nodes.find(n=>n.id===edgeObj.to);
+  const title = `${fromNode?.title || edgeObj.from} → ${toNode?.title || edgeObj.to}`;
+  const kindMap = {report:'Reporting', data:'Data', policy:'Policy/Compliance', influence:'External Influence'};
+  const kindLabel = kindMap[edgeObj.kind] || edgeObj.kind;
+  const key = `${edgeObj.from}->${edgeObj.to}`;
+  const detail = edgeDetails[key];
+
+  connectionPopover = document.createElement('div');
+  connectionPopover.style.position='fixed';
+  connectionPopover.style.left = (x+10)+'px';
+  connectionPopover.style.top = (y+10)+'px';
+  connectionPopover.style.background='var(--card)';
+  connectionPopover.style.border='1px solid var(--border)';
+  connectionPopover.style.boxShadow='var(--shadow)';
+  connectionPopover.style.padding='12px 14px';
+  connectionPopover.style.borderRadius='10px';
+  connectionPopover.style.fontSize='12px';
+  connectionPopover.style.maxWidth='360px';
+  connectionPopover.style.zIndex='9999';
+  const examplesHtml = detail?.examples?.length ? `<div style=\"color:var(--text);line-height:1.45; margin-top:8px\"><strong>Examples:</strong> ${detail.examples.join(' ')}</div>` : '';
+  const summaryHtml = detail?.summary ? `<div style=\"color:var(--text);line-height:1.45; margin-top:4px\">${detail.summary}</div>` : '';
+  connectionPopover.innerHTML = `
+    <div style=\"font-weight:600;color:var(--text);margin-bottom:4px\">${title}</div>
+    <div style=\"color:var(--muted);margin-bottom:6px\">Type: <b>${kindLabel}</b></div>
+    <div style=\"color:var(--text);line-height:1.45\">${edgeObj.label}</div>
+    ${summaryHtml}
+    ${examplesHtml}
+  `;
+  document.body.appendChild(connectionPopover);
+}
+function hideConnectionPopover(){ if(connectionPopover){ connectionPopover.remove(); connectionPopover = null; } }
+
+// Controls: toggle visibility by kind
+document.getElementById('controls').addEventListener('change', (e)=>{
+  if(!e.target.matches('input[type=checkbox]')) return;
+  e.stopPropagation();
+  e.preventDefault();
+  const kind = e.target.dataset.kind;
+  const show = e.target.checked;
+  svg.querySelectorAll(`.edge.${kind}`).forEach(el=>{
+    el.classList.toggle('hidden', !show);
+  });
+});
+
+// Prevent label clicks from bubbling up
+document.getElementById('controls').addEventListener('click', (e)=>{
+  if(e.target.closest('label')) {
+    e.stopPropagation();
+  }
+});
+
+// Prevent header interactions except on controls
+const headerEl = document.querySelector('header');
+function swallowHeaderEvent(e){
+  const isOnControls = !!e.target.closest('#controls input, #controls label');
+  if(!isOnControls){
+    e.preventDefault();
+    e.stopPropagation();
+    if(typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+  }
+}
+headerEl?.addEventListener('click', swallowHeaderEvent, true);
+headerEl?.addEventListener('dblclick', swallowHeaderEvent, true);
+headerEl?.addEventListener('pointerdown', swallowHeaderEvent, true);
+
+// Side panel population
+function showDetails(n){
+  const modal = document.getElementById('modal');
+  const title = document.getElementById('modal-title');
+  const body = document.getElementById('modal-body');
+  title.textContent = n.title;
+  const lis = n.bullets.map(b=>`<li>${b}</li>`).join('');
+  body.innerHTML = `
+    <div class="badge ${n.badgeClass}" style="margin-bottom:10px">${n.badge}</div>
+    <p style="margin-top:0"><b>${n.oneLiner}</b></p>
+    <ul>${lis}</ul>
+  `;
+  modal.removeAttribute('hidden');
+}
+document.getElementById('modal-close')?.addEventListener('click', ()=>{
+  document.getElementById('modal')?.setAttribute('hidden','');
+});
+
+// Intro modal - show on page load
+window.addEventListener('load', ()=>{
+  const introModal = document.getElementById('intro-modal');
+  if(introModal) {
+    introModal.removeAttribute('hidden');
+  }
+});
+
+document.getElementById('intro-close')?.addEventListener('click', ()=>{
+  document.getElementById('intro-modal')?.setAttribute('hidden','');
+});
+
+</script>
+</body>
+</html>
